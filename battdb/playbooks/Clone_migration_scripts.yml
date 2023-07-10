@@ -1,0 +1,8 @@
+---
+- name: Install Flyway
+  hosts: "{{ variable_host | default('all') }}"
+  tasks:
+    - name: Copy Migration Scripts
+      ansible.posix.synchronize:
+        src: ../assets/migration_scripts
+        dest: "{{ ansible_env.HOME }}/"

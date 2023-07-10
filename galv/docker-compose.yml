@@ -1,0 +1,94 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright  (c) 2020-2023, The Chancellor, Masters and Scholars of the University
+# of Oxford, and the 'Galv' Developers. All rights reserved.
+
+# docker-compose automatically loads contents of .env so we can refer to those here
+
+version: "2"
+services:
+  app:
+    image: app
+    build:
+      dockerfile: Dockerfile
+      context: backend
+    depends_on:
+      - postgres
+    volumes:
+     - ./.static_files:/static
+    working_dir: /usr/app
+    environment:
+      VIRTUAL_HOST: "api.${VIRTUAL_HOST_ROOT}"
+      LETSENCRYPT_HOST: "api.${VIRTUAL_HOST_ROOT}"
+      FRONTEND_VIRTUAL_HOST: "http://${VIRTUAL_HOST_ROOT},https://${VIRTUAL_HOST_ROOT}"
+    env_file:
+     - ./.env
+     - ./.env.secret
+    restart: unless-stopped
+    command: ./server.sh
+
+  frontend:
+    image: frontend
+    build:
+      dockerfile: Dockerfile
+      context: ./frontend
+      args:
+        VIRTUAL_HOST_ROOT: "${VIRTUAL_HOST_ROOT}"  # Required to inject API root into conf.json
+    depends_on:
+      - app
+    environment:
+        VIRTUAL_HOST: "${VIRTUAL_HOST_ROOT}"
+        LETSENCRYPT_HOST: "${VIRTUAL_HOST_ROOT}"
+    env_file:
+     - ./.env
+    restart: unless-stopped
+
+  postgres:
+    image: "postgres:14"
+    stop_signal: SIGINT                 # Fast Shutdown mode
+    volumes:
+      - "${GALV_DATA_PATH}:/var/lib/postgresql/data"
+    env_file:
+      - ./.env
+      - ./.env.secret
+    restart: unless-stopped
+
+  nginx-proxy:
+    build: nginx-proxy
+    container_name: nginx-proxy
+    restart: always
+    ports:
+      - "443:443"
+      - "80:80"
+    environment:
+      TRUST_DOWNSTREAM_PROXY: "true"
+      DEFAULT_HOST: "${VIRTUAL_HOST_ROOT}"
+    volumes:
+      - ./.static_files:/app/static
+      - ./.certs:/etc/nginx/certs
+      - ./.html:/usr/share/nginx/html
+      - vhost:/etc/nginx/vhost.d
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+    depends_on:
+      - app
+      - frontend
+
+  nginx-proxy-acme-companion:
+    image: nginxproxy/acme-companion
+    env_file:
+      - .env
+    environment:
+      NGINX_PROXY_CONTAINER: "nginx-proxy"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./.certs:/etc/nginx/certs
+      - ./.html:/usr/share/nginx/html
+      - vhost:/etc/nginx/vhost.d
+      - acme:/etc/acme.sh
+    depends_on:
+      - nginx-proxy
+
+volumes:
+#  certs:
+#  html:
+  vhost:
+  acme:

@@ -1,0 +1,64 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright  (c) 2020-2023, The Chancellor, Masters and Scholars of the University
+# of Oxford, and the 'Galv' Developers. All rights reserved.
+
+version: "2"
+services:
+
+  postgres_test:
+    image: "postgres"
+    stop_signal: SIGINT                 # Fast Shutdown mode
+    volumes:
+      - "${GALV_DATA_PATH}:/var/lib/postgresql/data"
+    env_file:
+      - .env.secret
+    restart: unless-stopped
+
+  app_test:
+    build:
+      dockerfile: Dockerfile-test
+      context: backend
+    depends_on:
+      - postgres_test
+    ports:
+      - "5005:5005"
+    volumes:
+     - ./backend:/usr/app
+    restart: unless-stopped
+    working_dir: /usr/app/backend_django
+    command: ../server.sh
+#    command: tail -F anything
+    env_file:
+      - .env.secret
+    environment:
+      POSTGRES_PASSWORD: "galv"
+      DJANGO_SECRET_KEY: "long-and-insecure-key-12345"
+      FRONTEND_VIRTUAL_HOST: "http://localhost"
+      VIRTUAL_HOST: "localhost"
+      POSTGRES_HOST: "postgres_test"
+
+  harvester_test:
+    build:
+      dockerfile: Dockerfile
+      context: ./harvester
+    volumes:
+     - ./harvester:/usr/harvester
+     - ./.harvester:/harvester_files
+     - "${GALV_HARVESTER_TEST_PATH}:/usr/test_data"
+    working_dir: /usr
+    command: python -m unittest discover -s /usr/harvester/test
+
+  frontend_test:
+    build:
+      dockerfile: Dockerfile_dev
+      context: ./frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+    working_dir: /app
+    command: >
+      bash -c "yarn start"
+    env_file:
+      - ./.env
+    restart: "no"

@@ -1,0 +1,41 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright  (c) 2020-2023, The Chancellor, Masters and Scholars of the University
+# of Oxford, and the 'Galv' Developers. All rights reserved.
+
+# Docker-compose file for the containers that generate documentation artefacts.
+# Should allow generation of
+# - entity relationship diagram
+# - API schema
+# - API client libraries
+version: "2"
+services:
+  app:
+    image: app
+    build:
+      dockerfile: Dockerfile
+      context: backend
+    depends_on:
+      - postgres
+    expose:
+      - 80
+    volumes:
+# local volume allows us to copy generated ER diagram easily
+      - ./backend:/usr/app
+    working_dir: /usr/app/backend_django
+    env_file:
+     - ./.env
+     - ./.env.secret
+    environment:
+      FRONTEND_VIRTUAL_HOST: "http://localhost"
+    restart: unless-stopped
+    command: ./server.sh
+
+  postgres:
+    image: "postgres"
+    stop_signal: SIGINT                 # Fast Shutdown mode
+    volumes:
+      - "${GALV_DATA_PATH}:/var/lib/postgresql/data"
+    env_file:
+      - ./.env
+      - ./.env.secret
+    restart: unless-stopped

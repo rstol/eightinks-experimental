@@ -1,0 +1,77 @@
+# This workflow will install Python dependencies, run tests and lint with a variety of Python versions
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
+
+name: battetl
+
+on:
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    environment: Actions
+    env:
+      DB_TARGET: db_test
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      DB_HOSTNAME: localhost
+      DB_PORT: 5432
+      ENV: dev
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10"]
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v3
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install flake8 pytest coverage
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Install BattETL
+        run: |
+          python -m pip install .
+
+      - name: Lint with flake8
+        run: |
+          # stop the build if there are Python syntax errors or undefined names
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+      - name: Check out BattGenie/battdb
+        uses: actions/checkout@v3
+        with:
+          repository: BattGenie/battdb
+          ssh-key: ${{ secrets.battdb_deploy_key }}
+          path: "battdb"
+
+      # In Docker Compose, Flyway depends on Postgres. Therefore, by running the command in this way,
+      # Postgres can be started in the background and Flyway can be executed in the foreground
+      - name: Init test db and run flyway migrate
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DATABASE: db_test
+          POSTGRES_PORT: 5432
+        run: |
+          docker-compose -f battdb/assets/battdb_docker/docker-compose.yml run flyway
+
+      # Exclude the 'battdb' folder as it generates the 'data' folder for Docker,
+      # which may cause permission issues when trying to read it in pytest.
+      - name: Test with pytest
+        run: |
+          coverage run -m pytest --ignore=battdb -vv
+          coverage json
+          export TOTAL=$(python -c "import json;print(json.load(open('coverage.json'))['totals']['percent_covered_display'])")
+          echo "total=$TOTAL" >> $GITHUB_ENV
+          echo "### Total coverage: ${TOTAL}%" >> $GITHUB_STEP_SUMMARY

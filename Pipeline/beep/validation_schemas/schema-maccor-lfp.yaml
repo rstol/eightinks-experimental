@@ -1,0 +1,15 @@
+# This is a placeholder for maccor schema for future development.
+data_point:
+  schema:
+    type: integer
+  type: list
+_state:
+  schema:
+    type: string
+  type: list
+voltage:
+  schema:
+    max: 4.4
+    min: 0.0
+    type: float
+  type: list

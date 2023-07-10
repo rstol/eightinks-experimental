@@ -1,0 +1,67 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright  (c) 2020-2023, The Chancellor, Masters and Scholars of the University
+# of Oxford, and the 'Galv' Developers. All rights reserved.
+
+version: "2"
+services:
+  harvester:
+    build:
+      dockerfile: Dockerfile
+      context: ./harvester
+    depends_on:
+      - app
+    volumes:
+     - ./harvester:/usr/harvester
+     - ./.harvester:/harvester_files
+     - "${GALV_HARVESTER_TEST_PATH}:/usr/test_data"
+    working_dir: /usr/harvester
+    restart: unless-stopped
+    command: python start.py --name "harvey" --url http://app/ --user_id 1 --run_foreground --restart
+#    command: tail -F anything
+
+  frontend:
+    image: frontend_dev
+    build:
+      dockerfile: Dockerfile_dev
+      context: ./frontend
+      args:
+        FORCE_HTTP: "true"
+    volumes:
+     - ./frontend:/app
+    working_dir: /app
+    command: >
+      bash -c "
+        yarn install && 
+        yarn start -p 80
+      "
+    restart: unless-stopped
+
+  app:
+    volumes:
+      - ./backend:/usr/app
+    environment:
+      DJANGO_SETTINGS: "dev"
+
+  postgres:
+    ports:
+      - "5432:5432"
+
+  nginx-proxy-acme-companion:
+    restart: "no"
+    entrypoint: [ "echo", "Service nginx-proxy-acme-companion disabled in development mode" ]
+
+#  old_worker:
+#      build:
+#        dockerfile: Dockerfile
+#        context: ./backend
+#      command: python manage.py test
+#      depends_on:
+#        - postgres
+#      volumes:
+#       - ./backend:/usr/app
+#       - "${GALV_HARVESTER_BASE_PATH}:/usr/data"
+#       - "${GALV_HARVESTER_TEST_PATH}:/usr/test_data"
+#       - "${CELERY_LOG_DIR}:/var/log/celery"
+#      working_dir: /usr/app
+#      env_file:
+#       - ./.env

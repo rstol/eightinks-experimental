@@ -1,0 +1,7 @@
+# nginx.default
+
+
+location /django_static/ {
+  alias /app/static/;
+  add_header Access-Control-Allow-Origin *;
+}

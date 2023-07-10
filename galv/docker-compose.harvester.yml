@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright  (c) 2020-2023, The Chancellor, Masters and Scholars of the University
+# of Oxford, and the 'Galv' Developers. All rights reserved.
+
+version: "2"
+services:
+  harvester:
+    build:
+      dockerfile: Dockerfile
+      context: ./harvester
+    volumes:
+     - ./harvester:/usr/harvester
+     - ./.harvester:/harvester_files
+    working_dir: /usr/harvester
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    command: python start.py

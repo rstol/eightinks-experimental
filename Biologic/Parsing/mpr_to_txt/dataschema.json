@@ -1,0 +1,19 @@
+{
+  "metadata": {
+    "provenance": {
+      "type": "manual"
+    },
+    "version": "5.0"
+  },
+  "steps": [
+    {
+      "parser": "electrochem",
+      "extractor": "eclab.mpr",
+      "input": {
+        "files": [
+          "TestData/Biologic_01.mpr"
+        ]
+      }
+    }
+  ]
+}

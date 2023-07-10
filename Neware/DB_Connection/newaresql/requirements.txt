@@ -1,0 +1,6 @@
+pandas
+scipy
+numba
+pymysql
+sqlalchemy
+tqdm

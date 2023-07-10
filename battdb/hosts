@@ -1,0 +1,12 @@
+vm1 ansible_ssh_host=192.168.56.104 ansible_ssh_user=bg ansible_ssh_pass=bg
+bg_battdb ansible_ssh_host=123.123.123.123 ansible_ssh_user=ubuntu ansible_ssh_private_key_file={{inventory_dir}}/assets/ssh/bg_battdb.pem
+
+[dev]
+vm1
+
+[prd]
+bg_battdb
+
+[all:vars]
+ansible_connection=ssh
+ansible_ssh_port=22
